@@ -1,0 +1,60 @@
+import cv2
+import numpy as np
+import os
+
+# Paso 1: Definir variables para las rutas de entrada y salida
+ruta_entrada = 'input.jpeg'
+ruta_salida = 'perfil_matrix_glow.jpg' # Cambié el nombre para reflejar el nuevo estilo
+
+# Paso 2: Cargar la imagen en escala de grises
+imagen = cv2.imread(ruta_entrada, cv2.IMREAD_GRAYSCALE)
+
+# Paso 3: Validar si la imagen se cargó correctamente
+if imagen is None:
+    print(f"ERROR: No se pudo cargar la imagen desde la ruta: {ruta_entrada}")
+    exit()
+
+print(f"✓ Imagen cargada exitosamente")
+
+# Paso 4: Crear el efecto de relieve (emboss) para textura
+kernel_emboss = np.array([
+    [-2, -1, 0],
+    [-1, 1, 1],
+    [0, 1, 2]
+], dtype=np.float32)
+textura_emboss = cv2.filter2D(imagen, -1, kernel_emboss)
+
+# Paso 5: Detectar bordes claros con Canny
+bordes = cv2.Canny(imagen, 100, 200)
+
+# Paso 6: Composición y Estilización "Verde Matrix" con Blurr
+# Oscurecer la imagen de textura original para el fondo
+fondo = cv2.convertScaleAbs(textura_emboss, alpha=0.3, beta=0)
+
+# Convertir el fondo a 3 canales (BGR)
+fondo_color = cv2.cvtColor(fondo, cv2.COLOR_GRAY2BGR)
+
+# Crear una imagen vacía a color para los bordes nítidos
+efectos_neon_nitido = np.zeros((*imagen.shape, 3), dtype=np.uint8)
+
+# Pintar los bordes de Canny en Verde Matrix (formato BGR: B=0, G=255, R=64)
+efectos_neon_nitido[bordes == 255] = [0, 255, 64]
+
+# --- NUEVO: Aplicar Blur para el resplandor (Glow) ---
+# Usamos un GaussianBlur para difuminar la capa de neón y crear el "brillo"
+brillo_difuminado = cv2.GaussianBlur(efectos_neon_nitido, (21, 21), 0)
+
+# Mezclamos las líneas nítidas con el brillo difuminado para el efecto de luz completo
+efecto_neon_completo = cv2.addWeighted(efectos_neon_nitido, 1.0, brillo_difuminado, 1.5, 0)
+# ---------------------------------------------------
+
+# Fusionar el fondo oscuro con el efecto de neón completo
+imagen_final = cv2.addWeighted(fondo_color, 1.0, efecto_neon_completo, 1.0, 0)
+
+# Paso 7: Guardar la imagen procesada
+cv2.imwrite(ruta_salida, imagen_final)
+
+# Paso 8: Imprimir mensaje de confirmación
+print(f"\n✓ Imagen procesada guardada exitosamente en: {ruta_salida}")
+print(f"  Ruta completa: {os.path.abspath(ruta_salida)}")
+print("\nProceso completado con éxito.")
